@@ -5,8 +5,9 @@ import db from '../db.js';
 import { users } from '../models/schema.js';
 import { sendEmail, emailTemplates, generateVerificationCode } from '../utils/emailService.js';
 
-// Store verification codes (in production, use Redis or similar)
+// Store verification codes and pending registrations (in production, use Redis or similar)
 const verificationCodes = new Map();
+const pendingRegistrations = new Map();
 
 /**
  * @swagger
@@ -59,39 +60,25 @@ export const register = async(req, res) => {
             expires: Date.now() + 10 * 60 * 1000 // 10 minutes
         });
 
-        // Send verification email
-        const { subject, html } = emailTemplates.verificationCode(verificationCode);
-        await sendEmail(email, subject, null, html);
-
-        const result = await db.insert(users).values({
+        // Store registration data temporarily
+        pendingRegistrations.set(email, {
             name,
             surname,
             email,
             password: hashedPassword,
-            role: 'student',
             phone,
             gender,
             birthDate,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        }).run();
+            createdAt: new Date()
+        });
 
-        const newUser = await db.select().from(users).where(eq(users.email, email)).get();
-
-        const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role },
-            process.env.JWT_SECRET, { expiresIn: '7d' }
-        );
+        // Send verification email
+        const { subject, html } = emailTemplates.verificationCode(verificationCode);
+        await sendEmail(email, subject, null, html);
 
         return res.status(201).json({
-            message: 'User registered successfully. Please check your email for verification code.',
-            token,
-            user: {
-                id: newUser.id,
-                name: newUser.name,
-                surname: newUser.surname,
-                email: newUser.email,
-                role: newUser.role,
-            }
+            message: 'Registration initiated. Please check your email for verification code.',
+            email
         });
     } catch (error) {
         console.error(error);
@@ -136,6 +123,7 @@ export const verifyEmail = async(req, res) => {
 
         if (Date.now() > verificationData.expires) {
             verificationCodes.delete(email);
+            pendingRegistrations.delete(email);
             return res.status(400).json({ message: 'Verification code has expired' });
         }
 
@@ -143,19 +131,42 @@ export const verifyEmail = async(req, res) => {
             return res.status(400).json({ message: 'Invalid verification code' });
         }
 
-        // Code is valid, update user's email verification status
-        await db.update(users)
-            .set({
-                isEmailVerified: true,
-                updatedAt: new Date()
-            })
-            .where(eq(users.email, email))
-            .run();
+        // Get pending registration data
+        const registrationData = pendingRegistrations.get(email);
+        if (!registrationData) {
+            return res.status(400).json({ message: 'Registration data not found' });
+        }
 
-        // Remove used code
+        // Create the user
+        const result = await db.insert(users).values({
+            ...registrationData,
+            role: 'student',
+            isEmailVerified: true,
+            updatedAt: new Date()
+        }).run();
+
+        const newUser = await db.select().from(users).where(eq(users.email, email)).get();
+
+        // Generate JWT token
+        const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role },
+            process.env.JWT_SECRET, { expiresIn: '7d' }
+        );
+
+        // Clean up
         verificationCodes.delete(email);
+        pendingRegistrations.delete(email);
 
-        return res.status(200).json({ message: 'Email verified successfully' });
+        return res.status(200).json({
+            message: 'Email verified and account created successfully',
+            token,
+            user: {
+                id: newUser.id,
+                name: newUser.name,
+                surname: newUser.surname,
+                email: newUser.email,
+                role: newUser.role,
+            }
+        });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Server error', error: error.message });
