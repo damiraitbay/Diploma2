@@ -36,9 +36,8 @@ import { getFileUrl, deleteFile } from '../utils/fileUploadService.js';
  */
 export const createPost = async(req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, image } = req.body;
         const userId = req.user.id;
-        const image = req.file ? getFileUrl(req.file.filename) : null;
 
         let clubId = null;
         if (req.user.role === 'head_admin') {
@@ -59,10 +58,6 @@ export const createPost = async(req, res) => {
 
         return res.status(201).json({ message: 'Post created successfully' });
     } catch (error) {
-        // If there was an error and a file was uploaded, delete it
-        if (req.file) {
-            deleteFile(req.file.filename);
-        }
         console.error(error);
         return res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -253,6 +248,7 @@ export const getUserPosts = async(req, res) => {
 export const updatePost = async(req, res) => {
     try {
         const postId = req.params.id;
+        const { title, content, image } = req.body;
         const userId = req.user.id;
 
         const post = await db.select().from(posts).where(eq(posts.id, postId)).get();
@@ -261,18 +257,15 @@ export const updatePost = async(req, res) => {
             return res.status(404).json({ message: 'Post not found' });
         }
 
-        // Check if user is the post creator or a super_admin
-        if (post.userId !== userId && req.user.role !== 'super_admin') {
-            return res.status(403).json({ message: 'Unauthorized access' });
+        if (post.userId !== userId) {
+            return res.status(403).json({ message: 'Unauthorized' });
         }
-
-        const { title, content, image } = req.body;
 
         await db.update(posts)
             .set({
                 title: title || post.title,
                 content: content || post.content,
-                image: image !== undefined ? image : post.image,
+                image: image || post.image,
                 updatedAt: new Date()
             })
             .where(eq(posts.id, postId))
@@ -283,7 +276,7 @@ export const updatePost = async(req, res) => {
         console.error(error);
         return res.status(500).json({ message: 'Server error', error: error.message });
     }
-};
+}
 
 /**
  * @swagger

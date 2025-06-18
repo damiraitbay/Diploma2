@@ -700,8 +700,7 @@ Content-Type: application/json
 
 ### Delete Club (Admin only)
 ```http
-DELETE /api/clubs/:id
-Authorization: Bearer YOUR_TOKEN
+DELETE /api/clubs/:idAuthorization: Bearer YOUR_TOKEN
 ```
 
 ## Events

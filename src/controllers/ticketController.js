@@ -39,9 +39,8 @@ import { getFileUrl, deleteFile } from '../utils/fileUploadService.js';
  */
 export const bookTicket = async(req, res) => {
     try {
-        const { posterId, numberOfPersons } = req.body;
+        const { posterId, numberOfPersons, paymentProof } = req.body;
         const userId = req.user.id;
-        const paymentProof = req.file ? getFileUrl(req.file.filename) : null;
 
         if (!paymentProof) {
             return res.status(400).json({ message: 'Payment proof is required' });
@@ -50,18 +49,10 @@ export const bookTicket = async(req, res) => {
         const poster = await db.select().from(posters).where(eq(posters.id, posterId)).get();
 
         if (!poster) {
-            // If there was an error and a file was uploaded, delete it
-            if (req.file) {
-                deleteFile(req.file.filename);
-            }
             return res.status(404).json({ message: 'Poster not found' });
         }
 
         if (poster.seatsLeft < numberOfPersons) {
-            // If there was an error and a file was uploaded, delete it
-            if (req.file) {
-                deleteFile(req.file.filename);
-            }
             return res.status(400).json({ message: 'Not enough seats available' });
         }
 
@@ -83,10 +74,6 @@ export const bookTicket = async(req, res) => {
 
         return res.status(201).json({ message: 'Ticket booked successfully' });
     } catch (error) {
-        // If there was an error and a file was uploaded, delete it
-        if (req.file) {
-            deleteFile(req.file.filename);
-        }
         console.error(error);
         return res.status(500).json({ message: 'Server error', error: error.message });
     }

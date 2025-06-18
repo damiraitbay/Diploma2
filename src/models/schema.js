@@ -13,6 +13,7 @@ export const users = sqliteTable('users', {
     birthDate: text('birth_date'),
     clubName: text('club_name'),
     isEmailVerified: integer('is_email_verified', { mode: 'boolean' }).default(false),
+    profileImage: text('profile_image'), // base64 profile image
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

@@ -29,6 +29,7 @@ export const getUserProfile = async(req, res) => {
                 gender: users.gender,
                 birthDate: users.birthDate,
                 clubName: users.clubName,
+                profileImage: users.profileImage,
                 createdAt: users.createdAt,
                 updatedAt: users.updatedAt,
             })
@@ -95,29 +96,19 @@ export const getUserProfile = async(req, res) => {
 export const updateUserProfile = async(req, res) => {
     try {
         const userId = req.user.id;
-        const profileImage = req.file ? getFileUrl(req.file.filename) : null;
-
         const {
             name,
             surname,
             phone,
             gender,
-            birthDate
+            birthDate,
+            profileImage
         } = req.body;
 
         const user = await db.select().from(users).where(eq(users.id, userId)).get();
 
         if (!user) {
-            if (req.file) {
-                deleteFile(req.file.filename);
-            }
             return res.status(404).json({ message: 'User not found' });
-        }
-
-        // If there's a new profile image and the user had an old one, delete it
-        if (profileImage && user.profileImage) {
-            const oldImagePath = user.profileImage.split('/').pop();
-            deleteFile(oldImagePath);
         }
 
         await db.update(users)
@@ -135,9 +126,6 @@ export const updateUserProfile = async(req, res) => {
 
         return res.status(200).json({ message: 'Profile updated successfully' });
     } catch (error) {
-        if (req.file) {
-            deleteFile(req.file.filename);
-        }
         console.error(error);
         return res.status(500).json({ message: 'Server error', error: error.message });
     }
