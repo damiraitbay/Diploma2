@@ -163,7 +163,7 @@ The system uses SQLite with Drizzle ORM and includes the following main tables:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mutasim77/unihub-backend.git
+git clone https://github.com/damiraitbay/Diploma2.git
 cd unihub-backend
 
 # Install dependencies
