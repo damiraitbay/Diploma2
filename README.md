@@ -205,7 +205,7 @@ DB_FILE_NAME=file:unihub.db
 
 2. Start the server:
    ```bash
-   npm run dev
+  Н
    ```
 
 3. Access the Swagger documentation at:
